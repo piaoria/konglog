@@ -13,3 +13,7 @@ logs/
 *.pem
 *.key
 .vscode/
+
+# Supabase CLI machine-local state
+supabase/.temp/
+supabase/.branches/

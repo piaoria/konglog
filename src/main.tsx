@@ -8,6 +8,7 @@ import { countdown, localParts, scheduledFlight } from './time';
 import { InlineWeather } from './InlineWeather';
 import { Bean } from './Bean';
 import { parseWeight, weightPoints } from './weight';
+import { loadSharedRecords, saveSharedRecord, sharedStorageConfigured, type Memo, type WeightRecord } from './storage';
 import './style.css';
 
 function App() {
@@ -16,6 +17,58 @@ function App() {
   const [code, setCode] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [memoMessage, setMemoMessage] = useState('');
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [sharedWeights, setSharedWeights] = useState<WeightRecord[]>([]);
+  const [recordsError, setRecordsError] = useState('');
+  const [loadingRecords, setLoadingRecords] = useState(sharedStorageConfigured);
+  const [savingMemo, setSavingMemo] = useState(false);
+  const [savingWeight, setSavingWeight] = useState(false);
+  const [memoId, setMemoId] = useState(() => crypto.randomUUID());
+  async function refreshRecords() {
+    setLoadingRecords(true);
+    setRecordsError('');
+    try {
+      const records = await loadSharedRecords();
+      setMemos(records.memos);
+      setSharedWeights(records.weights);
+    } catch { setRecordsError('공유 기록을 불러오지 못했습니다. 다시 시도해주세요.'); }
+    finally { setLoadingRecords(false); }
+  }
+  useEffect(() => {
+    if (!sharedStorageConfigured) return;
+    let active = true;
+    loadSharedRecords().then(records => { if (active) { setMemos(records.memos); setSharedWeights(records.weights); } }).catch(() => { if (active) setRecordsError('공유 기록을 불러오지 못했습니다. 다시 시도해주세요.'); }).finally(() => { if (active) setLoadingRecords(false); });
+    return () => { active = false; };
+  }, []);
+  async function submitMemo(event: React.FormEvent) {
+    event.preventDefault();
+    if (savingMemo) return;
+    if (!confirming) { setConfirming(true); return; }
+    if (!/^[0-9]{4}$/.test(code)) return;
+    setSavingMemo(true);
+    setMemoMessage('');
+    try {
+      const message = await saveSharedRecord({ kind: 'memo', id: memoId, content: draft.trim(), code });
+      setDraft(''); setCode(''); setConfirming(false); setMemoId(crypto.randomUUID()); setMemoMessage(message);
+      await refreshRecords();
+    } catch (error) { setMemoMessage(error instanceof Error ? error.message : '등록하지 못했습니다. 다시 시도해주세요.'); }
+    finally { setSavingMemo(false); }
+  }
+  async function submitWeight(event: React.FormEvent) {
+    event.preventDefault();
+    if (savingWeight) return;
+    const kg = parseWeight(weightDraft);
+    if (kg === null || kg >= 1000) { setWeightMessage('0보다 크고 1000보다 작은 체중을 입력하세요.'); return; }
+    if (!weightConfirming) { setWeightConfirming(true); setWeightMessage(''); return; }
+    if (!/^[0-9]{4}$/.test(weightCode)) return;
+    setSavingWeight(true); setWeightMessage('');
+    try {
+      const message = await saveSharedRecord({ kind: 'weight', kg, code: weightCode });
+      setWeightDraft(''); setWeightCode(''); setWeightConfirming(false); setWeightMessage(message);
+      await refreshRecords();
+    } catch (error) { setWeightMessage(error instanceof Error ? error.message : '등록하지 못했습니다. 다시 시도해주세요.'); }
+    finally { setSavingWeight(false); }
+  }
   const [weightDraft, setWeightDraft] = useState('');
   const [weightCode, setWeightCode] = useState('');
   const [weightConfirming, setWeightConfirming] = useState(false);
@@ -27,7 +80,7 @@ function App() {
   const away = localParts(now, travel.zone);
   const remaining = countdown(now);
   // const anniversary = inclusiveDays(page.startDate, page.anniversaryDate);
-  const weightRecords = [...weightChallenge.records].sort((a, b) => a.date.localeCompare(b.date));
+  const weightRecords = [...new Map([...weightChallenge.records, ...sharedWeights].map(record => [record.date, record])).values()].sort((a, b) => a.date.localeCompare(b.date));
   const firstWeight = weightRecords[0];
   const latestWeight = weightRecords.at(-1);
   const points = weightPoints(weightRecords);
@@ -53,14 +106,18 @@ function App() {
     </section>
     <a className="weather-credit" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
-    <section className="memo" aria-labelledby="memo-title"><div className="memo-heading"><h2 id="memo-title">{page.memo.heading}</h2><span>공유 저장 미연결</span></div>
-      <p className="memo-notice">공유 저장이 아직 연결되지 않았습니다. 입력한 내용은 저장되지 않습니다.</p>
-      <form onSubmit={event => { event.preventDefault(); if (!confirming) { setConfirming(true); return; } if (/^[0-9]{4}$/.test(code)) setMemoMessage('공유 저장 연결 전에는 등록할 수 없습니다.'); }}>
-        <label htmlFor="memo-draft">메모 내용</label><textarea id="memo-draft" value={draft} onChange={event => { setDraft(event.target.value); setMemoMessage(''); }} maxLength={2000} required placeholder="메모를 입력하세요"/>
-        {confirming && <div className="code-entry"><label htmlFor="memo-code">작성 코드</label><input id="memo-code" type="password" inputMode="numeric" minLength={4} maxLength={4} pattern="[0-9]{4}" autoComplete="off" value={code} onChange={event => setCode(event.target.value)} required aria-describedby="code-hint"/><p id="code-hint">4자리 숫자 코드 · 작성자는 연결 후 확인됩니다.</p></div>}
-        <div className="memo-actions">{confirming && <button type="button" className="secondary" onClick={() => { setConfirming(false); setCode(''); setMemoMessage(''); }}>돌아가기</button>}<button type="submit" disabled={!draft.trim()}>{confirming ? '등록 확인' : '등록하기'}</button></div>
+    <section className="memo" aria-labelledby="memo-title"><div className="memo-heading"><h2 id="memo-title">{page.memo.heading}</h2><span>{sharedStorageConfigured ? '공유 메모' : '공유 저장 미연결'}</span></div>
+      <p className="memo-notice">{sharedStorageConfigured ? "메모는 누구나 볼 수 있습니다. 작성 코드는 등록할 때만 확인합니다." : "공유 저장이 아직 연결되지 않았습니다. 입력한 내용은 저장되지 않습니다."}</p>
+      <form onSubmit={submitMemo} aria-busy={savingMemo}><fieldset disabled={savingMemo}>
+        <label htmlFor="memo-draft">{confirming ? "등록할 내용" : "메모 내용"}</label>{confirming ? <p className="memo-preview">{draft}</p> : <textarea id="memo-draft" value={draft} onChange={event => { setDraft(event.target.value); setMemoId(crypto.randomUUID()); setMemoMessage(''); }} maxLength={2000} required placeholder="메모를 입력하세요"/>}
+        {confirming && <div className="code-entry"><label htmlFor="memo-code">작성 코드</label><input id="memo-code" autoFocus type="password" inputMode="numeric" minLength={4} maxLength={4} pattern="[0-9]{4}" autoComplete="off" value={code} onChange={event => { setCode(event.target.value); setMemoMessage(''); }} required aria-describedby="code-hint"/><p id="code-hint">4자리 숫자 코드 · 등록할 때 작성자를 확인합니다.</p></div>}
+        <div className="memo-actions">{confirming && <button type="button" className="secondary" onClick={() => { setConfirming(false); setCode(''); setMemoMessage(''); }}>내용 수정</button>}<button type="submit" disabled={!draft.trim() || (confirming && !/^[0-9]{4}$/.test(code))}>{savingMemo ? '등록 중…' : confirming ? '등록' : '다음'}</button></div>
         <p className="memo-message" role="status">{memoMessage}</p>
-      </form><p className="memo-empty">등록된 메모가 없습니다.</p>
+      </fieldset></form>
+      {loadingRecords && <p className="memo-empty" role="status">기록을 불러오는 중…</p>}
+      {recordsError && <div className="records-error" role="status"><p>{recordsError}</p><button type="button" disabled={loadingRecords} onClick={refreshRecords}>다시 불러오기</button></div>}
+      {!loadingRecords && !recordsError && !memos.length && <p className="memo-empty">등록된 메모가 없습니다.</p>}
+      <div className="memo-list">{memos.map(memo => <article key={memo.id}><div><span>{memo.author === 'kongdol' ? page.people.home.name : page.people.away.name}</span><time dateTime={memo.created_at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(memo.created_at))}</time></div><p>{memo.content}</p></article>)}</div>
     </section>
     <section className="weight-challenge" aria-labelledby="weight-title">
       <div className="memo-heading"><h2 id="weight-title">{page.people.home.name} {weightChallenge.target}kg 챌린지</h2><span>귀국 예정까지</span></div>
@@ -75,16 +132,15 @@ function App() {
           {points.length === 1 ? <text x="160" y="102" textAnchor="middle" fill="#8a7a9c" fontSize="10">{localParts(new Date(firstWeight.date), 'Asia/Seoul').label}</text> : points.length > 1 && <><text x="18" y="102" fill="#8a7a9c" fontSize="10">{localParts(new Date(firstWeight.date), 'Asia/Seoul').label}</text><text x="302" y="102" textAnchor="end" fill="#8a7a9c" fontSize="10">{localParts(new Date(latestWeight!.date), 'Asia/Seoul').label}</text></>}
         </svg>{!points.length && <p>첫 기록이 저장되면 그래프가 표시됩니다.</p>}
       </div>
-      <p className="weight-notice">공유 저장 미연결 · 입력한 체중은 저장되지 않습니다.</p>
-      <form onSubmit={event => { event.preventDefault(); if (parseWeight(weightDraft) === null) { setWeightMessage('0보다 큰 숫자로 체중을 입력하세요.'); return; } if (!weightConfirming) { setWeightConfirming(true); setWeightMessage(''); return; } if (/^[0-9]{4}$/.test(weightCode)) setWeightMessage('공유 저장 연결 전에는 체중을 기록할 수 없습니다.'); }}>
+      <p className="weight-notice">{sharedStorageConfigured ? "체중 기록은 누구나 볼 수 있습니다. 콩돌만 등록할 수 있습니다." : "공유 저장 미연결 · 입력한 체중은 저장되지 않습니다."}</p>
+      <form onSubmit={submitWeight} aria-busy={savingWeight}><fieldset disabled={savingWeight}>
         <label htmlFor="weight-input">오늘의 체중 <span>{localParts(new Date(today), 'Asia/Seoul').label} · 한국 날짜</span></label><div className="weight-input-wrap"><input id="weight-input" type="number" inputMode="decimal" step="any" value={weightDraft} onChange={event => { setWeightDraft(event.target.value); setWeightMessage(''); }} required placeholder="체중 입력"/><span>kg</span></div>
-        <p className="weight-daily">연결 후 한국 날짜별 하루 1건 · 같은 날짜 입력은 기존 기록을 수정합니다.</p>
+        <p className="weight-daily">한국 날짜별 하루 1건 · 같은 날짜 입력은 기존 기록을 수정합니다.</p>
         {weightConfirming && <div className="code-entry"><label htmlFor="weight-code">콩돌 작성 코드</label><input id="weight-code" type="password" inputMode="numeric" minLength={4} maxLength={4} pattern="[0-9]{4}" autoComplete="off" value={weightCode} onChange={event => setWeightCode(event.target.value)} required/><p>4자리 숫자 코드 · 작성 권한은 연결 후 확인됩니다.</p></div>}
-        <div className="memo-actions">{weightConfirming && <button type="button" className="secondary" onClick={() => { setWeightConfirming(false); setWeightCode(''); setWeightMessage(''); }}>돌아가기</button>}<button type="submit" disabled={!weightDraft.trim()}>{weightConfirming ? '기록 확인' : '기록하기'}</button></div>
+        <div className="memo-actions">{weightConfirming && <button type="button" className="secondary" onClick={() => { setWeightConfirming(false); setWeightCode(''); setWeightMessage(''); }}>돌아가기</button>}<button type="submit" disabled={!weightDraft.trim() || (weightConfirming && !/^[0-9]{4}$/.test(weightCode))}>{weightConfirming ? '기록 확인' : '기록하기'}</button></div>
         <p className="memo-message" role="status">{weightMessage}</p>
-      </form>
+      </fieldset></form>
     </section>
-    <section className="memories"><h2>사진 기록</h2><p>등록된 사진이 없습니다.</p></section>
     <footer>{page.people.home.name} ♡ {page.people.away.name}{/* <span>{page.startDate.replaceAll('-', '.')} · {anniversary}일 기념</span> */}</footer>
   </main>;
 }
