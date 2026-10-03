@@ -1,2 +1,5 @@
 [functions.konglog-write]
 verify_jwt = false
+
+[functions.konglog-current]
+verify_jwt = false

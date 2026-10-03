@@ -49,15 +49,17 @@ export default {
       if (authorError) return reply('작성 확인을 처리할 수 없습니다. 잠시 후 다시 시도해주세요.', 503);
       if (author !== 'kongdol' && author !== 'kongsun') return reply('작성 코드를 확인해주세요.', 403);
       if (input.kind === 'memo') {
-        if (typeof input.content !== 'string' || !input.content.trim() || Array.from(input.content.trim()).length > 2000 || typeof input.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.id)) return reply('메모 내용을 확인해주세요.', 400);
-        // Duplicate request ID cannot overwrite another memo; retry is idempotent.
-        const { data, error } = await supabaseAdmin.from('memos').upsert({ id: input.id, author, content: input.content.trim() }, { onConflict: 'id', ignoreDuplicates: true }).select();
-        if (error) return reply('등록을 처리할 수 없습니다. 다시 시도해주세요.', 503);
-        if (!data?.length) {
-          const { data: existing, error: readError } = await supabaseAdmin.from('memos').select('id, author, content').eq('id', input.id).single();
-          if (readError || existing?.author !== author || existing?.content !== input.content.trim()) return reply('요청을 다시 확인해주세요.', 409);
-        }
-        return reply('메모를 등록했습니다.', 200);
+        if (input.author !== author) return reply('이 메모의 작성 코드를 확인해주세요.', 403);
+        if (typeof input.content !== 'string' || !input.content.trim() || Array.from(input.content.trim()).length > 2000 || typeof input.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.id) || typeof input.date !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.date)) return reply('메모 내용을 확인해주세요.', 400);
+        const { error } = await supabaseAdmin.rpc('save_today_memo', { memo_author: author, memo_content: input.content.trim(), request_id: input.id, expected_date: input.date });
+        if (error?.code === '22023') return reply('한국 날짜가 바뀌었어요. 날짜를 확인하고 다시 보내주세요.', 409);
+        return error ? reply('등록을 처리할 수 없습니다. 다시 시도해주세요.', 503) : reply('메모를 저장했습니다.', 200);
+      }
+      if (input.kind === 'home_status') {
+        if (author !== 'kongdol') return reply('콩돌만 상태를 바꿀 수 있습니다.', 403);
+        if (!['baseball', 'sleep', 'eating', 'resume', 'certificate'].includes(input.status)) return reply('상태를 확인해주세요.', 400);
+        const { error } = await supabaseAdmin.rpc('save_home_status', { status_value: input.status });
+        return error ? reply('상태를 저장하지 못했습니다. 다시 시도해주세요.', 503) : reply('상태를 저장했습니다.', 200);
       }
       if (input.kind === 'weight') {
         if (author !== 'kongdol') return reply('콩돌만 체중을 등록할 수 있습니다.', 403);

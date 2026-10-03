@@ -31,3 +31,29 @@ DB의 지속성 있는 요청 제한은 IP HMAC별 15분 5회와 전체 1시간 
 2026-10-03 서버 적용: 관리 RPC는 SECURITY INVOKER로 실행되고 service_role만 private 스키마·필요 테이블 권한을 갖습니다. 함수 의존성은 @supabase/server 1.9.0으로 고정했습니다. 사이트 빌드의 URL/publishable key는 공개 앱 식별값으로 workflow에 설정합니다. 사용자 작성 코드는 코드 등록용 placeholder SQL을 통해 직접 등록해야 합니다.
 
 Migration 파일은 공식 Supabase CLI 2.119.0의 `migration new konglog`로 생성한 `20261003141048_konglog.sql`입니다. 원격 적용은 별도 도구로 완료했으며 원격 migration history를 변경하지 않았습니다. 이후 CLI로 DB 변경을 배포하려면 먼저 원격 적용 버전과 로컬 파일의 대응을 확인해야 합니다.
+
+
+## 일일 메모와 현재 상태
+
+`20261003145049_daily_memos_and_current_status.sql`은 기존 메모 내용/ID/생성시각을 보존하고 한국 날짜와 수정시각을 추가합니다. `(record_date, author)` 유일키로 작성자별 하루 1개를 보장합니다. 기존 중복이 있으면 삭제/합치기 없이 실패하므로 적용 전에 메타데이터 중복을 확인합니다. 오늘 본인 메모만 서버 코드 확인 후 수정되며 과거 수정은 거부됩니다. 공개 읽기 RPC `get_memo_days(before_date)`는 날짜 전체의 좌우 종이를 함께 조회합니다.
+
+콩돌 상태는 `public.home_status`에 저장하고 `home_status` 쓰기 종류에서 콩돌 코드만 허용합니다. 원문 상태 텍스트를 클릭할 때 드롭다운이 열리고 선택/코드 확인은 카드 안에서 진행합니다. 허용값은 baseball/sleep/eating/resume/certificate입니다.
+
+전체 여행 일정은 `private.travel_schedule`에만 저장합니다. 실제 seed는 사용자가 승인한 별도 비공개 작업으로 넣으며 Git·브라우저 번들·공개 문서에 넣지 않습니다. `supabase/travel-schedule.example.sql`에는 자리표시자만 있습니다. UTC/명시 offset 기간이 겹치면 DB가 거부하며 종료시각은 제외됩니다. 도시 중심 좌표와 IANA 시간대가 정확한지 별도 확인합니다.
+
+`konglog-current`는 GET만 받고 query string을 거부합니다. 서버 내부 `get_current_travel()`은 인자를 받지 않고 DB 현재 시각에 맞는 한 상태만 읽습니다. private 스키마와 내부 RPC는 익명 접근을 막고 관리자만 조회합니다. API는 현재 도시/시간대/시계 라벨/상태만 명시적으로 골라 반환하며 일정 행 ID나 기간을 반환하지 않습니다. 브라우저는 매 60초 새로 읽고 확인되지 않은 현지 시간/상태를 임의로 만들지 않습니다.
+
+새 migration, 두 함수, 실제 비공개 일정 seed를 서버에 적용·검증하기 전에는 준비된 프런트를 배포하지 않습니다. 기존 공개 메모를 새 구조로 합치거나 지우지 않습니다. 실제 사용자 작성코드와 여행 전체정보는 테스트·로그·소스에 넣지 않습니다.
+
+현재 공개 API는 place/zone/clockLabel/status 네 필드만 반환하고 CORS는 공개 사이트 origin으로 제한합니다. 좌표와 비행편/도착시각은 브라우저에 보내지 않습니다. 바르셀로나의 기존 승인된 중심 좌표와 현재 도시가 일치할 때만 콩순 날씨를 보여주며 다른 도시에서는 날씨를 생략합니다.
+
+
+## 홈 화면 앱 (PWA)
+
+Galaxy는 Chrome에서 `/konglog/`를 열고 메뉴의 앱 설치/홈 화면에 추가를 선택합니다. iPhone은 Safari 공유 메뉴의 홈 화면에 추가를 사용합니다. 설치 앱은 standalone 화면으로 열리며 Apple touch icon과 192/512/maskable PNG는 기존 두 콩 아이콘을 사용합니다. 실제 Galaxy/iPhone 설치는 이 실행 환경에서 검증하지 않았습니다.
+
+`npm run build` 마지막 단계에서 앱 shell의 콘텐츠와 SW 템플릿 해시로 `dist/sw.js`를 생성합니다. scope/start_url은 `/konglog/`입니다. 정적 HTML/JS/CSS/폰트/아이콘/캐릭터 자산만 precache합니다. 메모/체중/작성코드/현재 정보 API, 다른 origin, POST, query가 있는 정적 요청은 캐시하지 않습니다. API fetch는 browser cache도 no-store로 요청합니다. 오프라인 저장 큐와 push 알림은 없습니다.
+
+네트워크가 끊겨도 열려 있는 화면의 초안은 메모리에 유지되고 저장은 실패로 표시합니다. 연결되면 메모/체중/현재 정보를 다시 읽지만 초안을 자동 전송하지 않습니다. 탭 종료/수동 새로고침까지 초안을 영구 보관하는 기능은 없습니다. 새로운 버전은 안내 후 활성화하고 입력 내용이 남아 있으면 자동 새로고침하지 않습니다. navigation은 온라인 최신 HTML을 먼저 읽고 오프라인에서는 설치된 버전의 HTML/자산을 함께 사용합니다. 새 SW 활성화 시 이 앱의 이전 shell 캐시만 삭제합니다.
+
+로컬 production Chrome 검증: manifest/scope/icons, SW 등록, 오프라인 재시작, API 캐시 없음, 초안 유지, 온라인 복구 재조회, 사용자 선택 업데이트와 이전 캐시 정리. 날짜별 종이 UI와 한국 자정 경계는 합성 API로 검증하며 실제 DB에 가짜 기록을 남기지 않습니다.
