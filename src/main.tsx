@@ -5,7 +5,7 @@ import { page, travelSnapshot, weightChallenge } from './data';
 import { countdown, localParts, scheduledFlight } from './time';
 // 200일 기능 복원 시 inclusiveDays import와 아래 주석을 함께 복원합니다.
 // import { inclusiveDays } from './time';
-import { WeatherSection } from './WeatherSection';
+import { InlineWeather } from './InlineWeather';
 import { Bean } from './Bean';
 import { parseWeight, weightPoints } from './weight';
 import './style.css';
@@ -49,10 +49,10 @@ function App() {
         <div className="card-top"><span>{card.person.name}</span><span className="sky" aria-label={card.clock.night ? '현지 밤 시간' : '현지 낮 시간'}><svg className="sky-icon" viewBox="0 0 24 24" aria-hidden="true">{card.clock.night ? <path d="M15.4 4.4 C11.8 4.0 8.6 6.2 7.7 9.6 C6.4 14.1 9.2 18.4 13.7 19.3 C16.0 19.8 18.4 19.2 20.0 17.7 C20.7 17.0 20.1 16.0 19.2 16.1 C15.9 16.5 13.0 14.4 12.6 11.2 C12.3 9.0 13.3 7.0 15.2 5.8 C15.9 5.3 16.2 4.6 15.4 4.4Z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/> : <><circle cx="12" cy="12" r="3.5" fill="currentColor"/><path d="M12 2V5 M12 19V22 M2 12H5 M19 12H22 M5 5L7 7 M17 17L19 19 M5 19L7 17 M17 7L19 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></>}</svg></span></div>
         <div className="character">{card.person.photo ? <img src={card.person.photo} alt={card.person.name}/> : <Bean cat={index === 1}/>}</div>
         <p className="clock-label">{card.clockLabel}</p><time dateTime={now.toISOString()} className="time">{card.clock.time}</time><p className="local-date">{card.clock.label} <span>· {card.clock.night ? '밤' : '낮'}</span></p>
-        <p className="place">{card.place}</p><p className="status">{card.status.split(' · ').map(line => <span key={line}>{line}</span>)}</p>{index === 0 && latestWeight && <p className="card-weight-readout">{weightFormat.format(latestWeight.kg)}<small>kg</small></p>}{index === 1 && activeFlight && <p className="flight-remaining"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3 C10.5 1.7 13.5 1.7 13.5 3 L13.5 9 L21 14 L21 16 L13.5 13.5 L13.5 19 L16 21 L16 22 L12 21 L8 22 L8 21 L10.5 19 L10.5 13.5 L3 16 L3 14 L10.5 9Z" fill="currentColor" stroke="currentColor" strokeWidth=".5" strokeLinejoin="round" transform="rotate(30 12 12)"/></svg><span>도착 예정까지 <strong>{activeFlight.minutes}</strong>분</span></p>}<span className="zone">{card.zone}</span>
+        <div className="place"><span>{card.place}</span><InlineWeather index={index}/></div><p className="status">{card.status.split(' · ').map(line => <span key={line}>{line}</span>)}</p>{index === 0 && latestWeight && <p className="card-weight-readout">{weightFormat.format(latestWeight.kg)}<small>kg</small></p>}{index === 1 && activeFlight && <p className="flight-remaining"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3 C10.5 1.7 13.5 1.7 13.5 3 L13.5 9 L21 14 L21 16 L13.5 13.5 L13.5 19 L16 21 L16 22 L12 21 L8 22 L8 21 L10.5 19 L10.5 13.5 L3 16 L3 14 L10.5 9Z" fill="currentColor" stroke="currentColor" strokeWidth=".5" strokeLinejoin="round" transform="rotate(30 12 12)"/></svg><span>도착 예정까지 <strong>{activeFlight.minutes}</strong>분</span></p>}<span className="zone">{card.zone}</span>
       </article>)}
     </section>
-    <WeatherSection/>
+    <a className="weather-credit" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
     <section className="ticket" aria-labelledby="ticket-title">
       <div className="ticket-heading"><span className="eyebrow">귀국 항공편</span><span className="ticket-stamp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L3 10L11 13L14 21Z M11 13L21 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg> ICN</span></div>

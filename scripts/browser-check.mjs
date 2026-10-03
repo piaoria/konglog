@@ -22,7 +22,7 @@ const out = 'C:/Users/cronp/Desktop/project/verification';
   await page.clock.install({ time: new Date('2040-01-01T00:00:00Z') });
   await page.goto('http://127.0.0.1:5173/konglog/');
   if (!(await page.locator('.arrival-message').textContent()).includes('실제 도착과 재회는 아직 확인되지')) throw Error('Arrival must not imply reunion');
-  if ((await page.locator('.peach .place').textContent()) !== '바르셀로나') throw Error('Snapshot must not switch to a future city');
+  if ((await page.locator('.peach .place > span:first-child').textContent()) !== '바르셀로나') throw Error('Snapshot must not switch to a future city');
   await page.screenshot({path:`${out}/arrival-elapsed-390.png`,fullPage:true});
   fs.writeFileSync(`${out}/browser-results.json`, JSON.stringify({browser:'Windows Chrome headless (not iPhone Safari)',results,arrivalBoundary:'passed'},null,2));
   console.log(JSON.stringify(results,null,2));

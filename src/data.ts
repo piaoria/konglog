@@ -27,4 +27,3 @@ export const weightChallenge = {
 
 // 승인된 현재 도시 중심 좌표만 사용합니다. 현재 도시 변경 시 이 좌표도 함께 갱신합니다.
 export const weatherLocations = [{ latitude: 37.5665, longitude: 126.978 }, { latitude: 41.3874, longitude: 2.1686 }];
-export const homeCity = '서울';
