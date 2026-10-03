@@ -26,7 +26,6 @@ function App() {
   const home = localParts(now, page.people.home.zone);
   const away = localParts(now, travel.zone);
   const remaining = countdown(now);
-  const arrival = localParts(new Date(page.arrival), 'Asia/Seoul');
   // const anniversary = inclusiveDays(page.startDate, page.anniversaryDate);
   const weightRecords = [...weightChallenge.records].sort((a, b) => a.date.localeCompare(b.date));
   const firstWeight = weightRecords[0];
@@ -36,7 +35,7 @@ function App() {
   const weightFormat = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 });
   if (page.closed) return <main className="closed"><p>{page.people.home.name} ♡ {page.people.away.name}</p><h1>페이지 표시가 종료되었습니다.</h1></main>;
   return <main>
-    <header><span className="brand">{page.people.home.name} <i>♡</i> {page.people.away.name}</span></header>
+    <header><span className="brand">{page.people.home.name} <i>♡</i> {page.people.away.name}</span><div className="header-countdown" aria-label="다시 만나기까지, 예정 도착 시각 기준"><span className="countdown-label">다시 만나기까지</span>{page.reunited ? <span className="arrival-message">재회 기록됨</span> : remaining.elapsed ? <span className="arrival-message">예정 시각 지남<small>도착·재회 미확인</small></span> : <span className="countdown" aria-label={`${remaining.days}일 ${remaining.hours}시간 ${remaining.minutes}분 ${remaining.seconds}초 남음`}><strong>{remaining.days}<small>일</small></strong><span>{String(remaining.hours).padStart(2,'0')}:{String(remaining.minutes).padStart(2,'0')}:{String(remaining.seconds).padStart(2,'0')}</span></span>}</div></header>
     {/* 200일 기념 영역: 복원 시 아래 주석을 해제합니다.
     <section className="intro">
       <span className="anniversary"><span aria-hidden="true">♡</span> 우리의 {anniversary}일</span>
@@ -54,13 +53,6 @@ function App() {
     </section>
     <a className="weather-credit" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
-    <section className="ticket" aria-labelledby="ticket-title">
-      <div className="ticket-heading"><span className="eyebrow">귀국 항공편</span><span className="ticket-stamp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L3 10L11 13L14 21Z M11 13L21 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg> ICN</span></div>
-      <h2 id="ticket-title">{page.reunited ? '재회 기록' : '인천 도착까지'}</h2>
-      <p className="ticket-sub">도착 예정 시각 기준</p>
-      {page.reunited ? <p className="arrival-message">재회 상태: 기록됨</p> : remaining.elapsed ? <p className="arrival-message">도착 예정 시각이 지났어요.<small>실제 도착과 재회는 아직 확인되지 않았어요.</small></p> : <div className="countdown" aria-label={`${remaining.days}일 ${remaining.hours}시간 ${remaining.minutes}분 ${remaining.seconds}초 남음`}>{[[remaining.days,'일'],[remaining.hours,'시간'],[remaining.minutes,'분'],[remaining.seconds,'초']].map(([value,label]) => <div key={label}><strong>{String(value).padStart(2,'0')}</strong><span>{label}</span></div>)}</div>}
-      <div className="ticket-footer"><div><span>도착 예정</span><b>{arrival.label} <i>·</i> {arrival.time}</b></div><small>한국 시간<br/>(Asia/Seoul)</small></div>
-    </section>
     <section className="memo" aria-labelledby="memo-title"><div className="memo-heading"><h2 id="memo-title">{page.memo.heading}</h2><span>공유 저장 미연결</span></div>
       <p className="memo-notice">공유 저장이 아직 연결되지 않았습니다. 입력한 내용은 저장되지 않습니다.</p>
       <form onSubmit={event => { event.preventDefault(); if (!confirming) { setConfirming(true); return; } if (/^[0-9]{4}$/.test(code)) setMemoMessage('공유 저장 연결 전에는 등록할 수 없습니다.'); }}>
