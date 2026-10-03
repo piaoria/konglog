@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+verification/
+
+# Local references, logs, credentials and editor files
+reference/
+references/
+logs/
+*.log
+.env
+.env.*
+*.pem
+*.key
+.vscode/
