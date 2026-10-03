@@ -27,8 +27,8 @@ test('HTTP and invalid API responses fail without invented temperatures', async 
   } finally { globalThis.fetch=previous; }
 });
 test('weather descriptions cover day, night, rain, snow and thunderstorms', () => {
-  assert.equal(weatherDescription(0,true).icon,'☀️');
-  assert.equal(weatherDescription(0,false).icon,'🌙');
+  assert.equal(weatherDescription(0,true).icon,'sun');
+  assert.equal(weatherDescription(0,false).icon,'moon');
   assert.equal(weatherDescription(63,true).text,'비');
   assert.equal(weatherDescription(75,true).text,'눈');
   assert.equal(weatherDescription(95,true).text,'뇌우');

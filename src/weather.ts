@@ -10,13 +10,13 @@ export async function currentWeather(location: { latitude: number; longitude: nu
 }
 
 export function weatherDescription(code: number, day: boolean) {
-  if (code === 0) return { icon: day ? '☀️' : '🌙', text: '맑음' };
-  if ([1,2].includes(code)) return { icon: day ? '🌤️' : '☁️', text: '구름 조금' };
-  if (code === 3) return { icon: '☁️', text: '흐림' };
-  if ([45,48].includes(code)) return { icon: '🌫️', text: '안개' };
-  if ([51,53,55,56,57].includes(code)) return { icon: '🌦️', text: '이슬비' };
-  if ([61,63,65,66,67,80,81,82].includes(code)) return { icon: '🌧️', text: '비' };
-  if ([71,73,75,77,85,86].includes(code)) return { icon: '🌨️', text: '눈' };
-  if ([95,96,97,99].includes(code)) return { icon: '⛈️', text: '뇌우' };
-  return { icon: '🌡️', text: '날씨 정보' };
+  if (code === 0) return { icon: day ? 'sun' : 'moon', text: '맑음' };
+  if ([1,2].includes(code)) return { icon: 'cloud', text: '구름 조금' };
+  if (code === 3) return { icon: 'cloud', text: '흐림' };
+  if ([45,48].includes(code)) return { icon: 'fog', text: '안개' };
+  if ([51,53,55,56,57].includes(code)) return { icon: 'rain', text: '이슬비' };
+  if ([61,63,65,66,67,80,81,82].includes(code)) return { icon: 'rain', text: '비' };
+  if ([71,73,75,77,85,86].includes(code)) return { icon: 'snow', text: '눈' };
+  if ([95,96,97,99].includes(code)) return { icon: 'storm', text: '뇌우' };
+  return { icon: 'cloud', text: '날씨 정보' };
 }

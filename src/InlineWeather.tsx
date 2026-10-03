@@ -1,3 +1,4 @@
+import { WeatherIcon } from './WeatherIcon';
 import { useEffect, useState } from 'react';
 import { weatherLocations } from './data';
 import { currentWeather, weatherDescription } from './weather';
@@ -17,6 +18,6 @@ export function InlineWeather({ index }: { index: number }) {
   }, [location, attempt]);
   const description = weather && weatherDescription(weather.code, weather.day);
   return <span className="inline-weather">
-    {error ? <button type="button" className="weather-retry" aria-label="날씨 다시 불러오기" onClick={() => { setError(false); setWeather(null); setAttempt(value => value + 1); }}>날씨 재시도</button> : !weather ? <span className="weather-loading" role="status">날씨…</span> : <span className="weather-value" aria-label={`${description!.text}, 현재 ${Math.round(weather.temperature)}도`} title={`${description!.text} · 도시 중심 기준`}><span aria-hidden="true">{description!.icon}</span><strong>{Math.round(weather.temperature)}<small>°C</small></strong></span>}
+    {error ? <button type="button" className="weather-retry" aria-label="날씨 다시 불러오기" onClick={() => { setError(false); setWeather(null); setAttempt(value => value + 1); }}>재시도</button> : !weather ? <span className="weather-loading" role="status">날씨…</span> : <span className="weather-value" aria-label={`${description!.text}, 현재 ${Math.round(weather.temperature)}도`} title={`${description!.text} · 도시 중심 기준`}><WeatherIcon kind={description!.icon}/><strong>{Math.round(weather.temperature)}<small>°C</small></strong></span>}
   </span>;
 }
