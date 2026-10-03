@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "test": "tsx --test src/time.test.ts src/weight.test.ts"
+    "test": "tsx --test src/time.test.ts src/weight.test.ts src/weather.test.ts"
   },
   "dependencies": {
     "react": "^19.0.0",

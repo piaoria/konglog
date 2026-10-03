@@ -5,6 +5,7 @@ import { page, travelSnapshot, weightChallenge } from './data';
 import { countdown, localParts, scheduledFlight } from './time';
 // 200일 기능 복원 시 inclusiveDays import와 아래 주석을 함께 복원합니다.
 // import { inclusiveDays } from './time';
+import { WeatherSection } from './WeatherSection';
 import { Bean } from './Bean';
 import { parseWeight, weightPoints } from './weight';
 import './style.css';
@@ -51,6 +52,7 @@ function App() {
         <p className="place">{card.place}</p><p className="status">{card.status.split(' · ').map(line => <span key={line}>{line}</span>)}</p>{index === 0 && latestWeight && <p className="card-weight-readout">{weightFormat.format(latestWeight.kg)}<small>kg</small></p>}{index === 1 && activeFlight && <p className="flight-remaining"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3 C10.5 1.7 13.5 1.7 13.5 3 L13.5 9 L21 14 L21 16 L13.5 13.5 L13.5 19 L16 21 L16 22 L12 21 L8 22 L8 21 L10.5 19 L10.5 13.5 L3 16 L3 14 L10.5 9Z" fill="currentColor" stroke="currentColor" strokeWidth=".5" strokeLinejoin="round" transform="rotate(30 12 12)"/></svg><span>도착 예정까지 <strong>{activeFlight.minutes}</strong>분</span></p>}<span className="zone">{card.zone}</span>
       </article>)}
     </section>
+    <WeatherSection/>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
     <section className="ticket" aria-labelledby="ticket-title">
       <div className="ticket-heading"><span className="eyebrow">귀국 항공편</span><span className="ticket-stamp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L3 10L11 13L14 21Z M11 13L21 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg> ICN</span></div>
