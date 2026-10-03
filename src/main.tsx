@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { page, travelSnapshot, weightChallenge } from './data';
 import { countdown, localParts, scheduledFlight } from './time';
 // 200일 기능 복원 시 inclusiveDays import와 아래 주석을 함께 복원합니다.
@@ -8,7 +8,7 @@ import { countdown, localParts, scheduledFlight } from './time';
 import { InlineWeather } from './InlineWeather';
 import { Bean } from './Bean';
 import { parseWeight, weightPoints } from './weight';
-import { loadSharedRecords, saveSharedRecord, sharedStorageConfigured, type Memo, type WeightRecord } from './storage';
+import { loadSharedRecords, loadOlderMemos, saveSharedRecord, sharedStorageConfigured, type Memo, type WeightRecord } from './storage';
 import './style.css';
 
 function App() {
@@ -18,6 +18,35 @@ function App() {
   const [confirming, setConfirming] = useState(false);
   const [memoMessage, setMemoMessage] = useState('');
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [hasOlderMemos, setHasOlderMemos] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState('');
+  const olderAnchor = useRef<{ id: string; top: number } | null>(null);
+  const scrollToLatest = useRef(false);
+  useLayoutEffect(() => {
+    const anchor = olderAnchor.current;
+    if (anchor) {
+      const element = document.getElementById(`memo-${anchor.id}`);
+      if (element) window.scrollBy(0, element.getBoundingClientRect().top - anchor.top);
+      olderAnchor.current = null;
+    } else if (scrollToLatest.current && memos[0]) {
+      document.getElementById(`memo-${memos[0].id}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      scrollToLatest.current = false;
+    }
+  }, [memos]);
+  async function showOlderMemos() {
+    if (loadingOlder || !memos.length) return;
+    setLoadingOlder(true); setOlderError('');
+    try {
+      const oldest = memos[memos.length - 1];
+      const records = await loadOlderMemos(oldest);
+      const element = document.getElementById(`memo-${oldest.id}`);
+      olderAnchor.current = element ? { id: oldest.id, top: element.getBoundingClientRect().top } : null;
+      setMemos(current => [...current, ...records.memos.filter(memo => !current.some(existing => existing.id === memo.id))]);
+      setHasOlderMemos(records.hasOlderMemos);
+    } catch { setOlderError('이전 메모를 불러오지 못했습니다. 다시 시도해주세요.'); }
+    finally { setLoadingOlder(false); }
+  }
   const [sharedWeights, setSharedWeights] = useState<WeightRecord[]>([]);
   const [recordsError, setRecordsError] = useState('');
   const [loadingRecords, setLoadingRecords] = useState(sharedStorageConfigured);
@@ -29,7 +58,7 @@ function App() {
     setRecordsError('');
     try {
       const records = await loadSharedRecords();
-      setMemos(records.memos);
+      setMemos(records.memos); setHasOlderMemos(records.hasOlderMemos); setOlderError('');
       setSharedWeights(records.weights);
     } catch { setRecordsError('공유 기록을 불러오지 못했습니다. 다시 시도해주세요.'); }
     finally { setLoadingRecords(false); }
@@ -37,7 +66,7 @@ function App() {
   useEffect(() => {
     if (!sharedStorageConfigured) return;
     let active = true;
-    loadSharedRecords().then(records => { if (active) { setMemos(records.memos); setSharedWeights(records.weights); } }).catch(() => { if (active) setRecordsError('공유 기록을 불러오지 못했습니다. 다시 시도해주세요.'); }).finally(() => { if (active) setLoadingRecords(false); });
+    loadSharedRecords().then(records => { if (active) { setMemos(records.memos); setHasOlderMemos(records.hasOlderMemos); setOlderError(''); setSharedWeights(records.weights); } }).catch(() => { if (active) setRecordsError('공유 기록을 불러오지 못했습니다. 다시 시도해주세요.'); }).finally(() => { if (active) setLoadingRecords(false); });
     return () => { active = false; };
   }, []);
   async function submitMemo(event: React.FormEvent) {
@@ -50,6 +79,7 @@ function App() {
     try {
       const message = await saveSharedRecord({ kind: 'memo', id: memoId, content: draft.trim(), code });
       setDraft(''); setCode(''); setConfirming(false); setMemoId(crypto.randomUUID()); setMemoMessage(message);
+      scrollToLatest.current = true;
       await refreshRecords();
     } catch (error) { setMemoMessage(error instanceof Error ? error.message : '등록하지 못했습니다. 다시 시도해주세요.'); }
     finally { setSavingMemo(false); }
@@ -106,18 +136,35 @@ function App() {
     </section>
     <a className="weather-credit" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
-    <section className="memo" aria-labelledby="memo-title"><div className="memo-heading"><h2 id="memo-title">{page.memo.heading}</h2><span>{sharedStorageConfigured ? '공유 메모' : '공유 저장 미연결'}</span></div>
-      <p className="memo-notice">{sharedStorageConfigured ? "메모는 누구나 볼 수 있습니다. 작성 코드는 등록할 때만 확인합니다." : "공유 저장이 아직 연결되지 않았습니다. 입력한 내용은 저장되지 않습니다."}</p>
-      <form onSubmit={submitMemo} aria-busy={savingMemo}><fieldset disabled={savingMemo}>
-        <label htmlFor="memo-draft">{confirming ? "등록할 내용" : "메모 내용"}</label>{confirming ? <p className="memo-preview">{draft}</p> : <textarea id="memo-draft" value={draft} onChange={event => { setDraft(event.target.value); setMemoId(crypto.randomUUID()); setMemoMessage(''); }} maxLength={2000} required placeholder="메모를 입력하세요"/>}
-        {confirming && <div className="code-entry"><label htmlFor="memo-code">작성 코드</label><input id="memo-code" autoFocus type="password" inputMode="numeric" minLength={4} maxLength={4} pattern="[0-9]{4}" autoComplete="off" value={code} onChange={event => { setCode(event.target.value); setMemoMessage(''); }} required aria-describedby="code-hint"/><p id="code-hint">4자리 숫자 코드 · 등록할 때 작성자를 확인합니다.</p></div>}
-        <div className="memo-actions">{confirming && <button type="button" className="secondary" onClick={() => { setConfirming(false); setCode(''); setMemoMessage(''); }}>내용 수정</button>}<button type="submit" disabled={!draft.trim() || (confirming && !/^[0-9]{4}$/.test(code))}>{savingMemo ? '등록 중…' : confirming ? '등록' : '다음'}</button></div>
-        <p className="memo-message" role="status">{memoMessage}</p>
+    <section className="memo exchange-notes" aria-labelledby="memo-title">
+      <div className="memo-heading"><h2 id="memo-title">{page.memo.heading}<span aria-hidden="true">♡</span></h2></div>
+      <div className="memo-conversation" aria-label="주고받은 메모" aria-busy={loadingRecords || loadingOlder}>
+        {hasOlderMemos && <button className="memo-older" type="button" disabled={loadingOlder || loadingRecords || savingMemo} onClick={showOlderMemos}>{loadingOlder ? '불러오는 중…' : '이전 메모 더 보기'}<span aria-hidden="true">↑</span></button>}
+        {olderError && <p className="memo-message" role="status">{olderError}</p>}
+        {loadingRecords && !memos.length && <p className="memo-empty" role="status">메모를 불러오는 중…</p>}
+        {recordsError && <div className="records-error" role="status"><p>{recordsError}</p><button type="button" disabled={loadingRecords || savingMemo} onClick={refreshRecords}>다시 불러오기</button></div>}
+        {!loadingRecords && !recordsError && !memos.length && <p className="memo-empty">아직 비어 있는 메모지<span aria-hidden="true">♡</span></p>}
+        <div className="memo-thread">{[...memos].reverse().map((memo, index, chronological) => {
+          const date = localParts(new Date(memo.created_at), 'Asia/Seoul').date;
+          const previousDate = index ? localParts(new Date(chronological[index - 1].created_at), 'Asia/Seoul').date : null;
+          return <React.Fragment key={memo.id}>
+            {date !== previousDate && <div className="memo-day"><time dateTime={date}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(memo.created_at))}</time></div>}
+            <article id={`memo-${memo.id}`} className={`memo-note ${memo.author}`}>
+              <span className="memo-author">{memo.author === 'kongdol' ? page.people.home.name : page.people.away.name}</span>
+              <div className="memo-bubble"><p>{memo.content}</p></div>
+              <time className="memo-time" dateTime={memo.created_at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(memo.created_at))}</time>
+            </article>
+          </React.Fragment>;
+        })}</div>
+      </div>
+      <form className="memo-compose" onSubmit={submitMemo} aria-busy={savingMemo}><fieldset disabled={savingMemo}>
+        {confirming ? <p className="memo-preview">{draft}</p> : <><label className="visually-hidden" htmlFor="memo-draft">메모 쓰기</label><textarea id="memo-draft" value={draft} onChange={event => { setDraft(event.target.value); setMemoId(crypto.randomUUID()); setMemoMessage(''); }} maxLength={2000} required placeholder="오늘의 한 줄을 남겨줘" rows={3}/></>}
+        <div className="memo-compose-bottom">
+          {confirming && <div className="code-entry"><label className="visually-hidden" htmlFor="memo-code">작성 코드</label><input id="memo-code" autoFocus type="password" inputMode="numeric" minLength={4} maxLength={4} pattern="[0-9]{4}" autoComplete="off" value={code} onChange={event => { setCode(event.target.value); setMemoMessage(''); }} required placeholder="작성 코드"/></div>}
+          <div className="memo-actions">{confirming && <button type="button" className="secondary" onClick={() => { setConfirming(false); setCode(''); setMemoMessage(''); }}>수정</button>}<button type="submit" disabled={!draft.trim() || (confirming && !/^[0-9]{4}$/.test(code))}>{savingMemo ? '보내는 중…' : '보내기'}<span aria-hidden="true">↗</span></button></div>
+        </div>
+        {memoMessage && <p className="memo-message" role="status">{memoMessage}</p>}
       </fieldset></form>
-      {loadingRecords && <p className="memo-empty" role="status">기록을 불러오는 중…</p>}
-      {recordsError && <div className="records-error" role="status"><p>{recordsError}</p><button type="button" disabled={loadingRecords} onClick={refreshRecords}>다시 불러오기</button></div>}
-      {!loadingRecords && !recordsError && !memos.length && <p className="memo-empty">등록된 메모가 없습니다.</p>}
-      <div className="memo-list">{memos.map(memo => <article key={memo.id}><div><span>{memo.author === 'kongdol' ? page.people.home.name : page.people.away.name}</span><time dateTime={memo.created_at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(memo.created_at))}</time></div><p>{memo.content}</p></article>)}</div>
     </section>
     <section className="weight-challenge" aria-labelledby="weight-title">
       <div className="memo-heading"><h2 id="weight-title">{page.people.home.name} {weightChallenge.target}kg 챌린지</h2><span>귀국 예정까지</span></div>
