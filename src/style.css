@@ -65,3 +65,19 @@ form fieldset{border:0;padding:0;margin:0;min-width:0}.memo-list article{border-
 @media(min-width:600px){.paper-pair{gap:18px}.daily-paper{padding:15px 17px}.paper-heading h3{font-size:21px}.paper-content{font-size:16px}.home-doing select{font-size:12px}}
 
 .pwa-notice,.pwa-update{font-size:11px;line-height:1.8;color:#937aa5;background:#f1eafa;border:1px solid #e4d8ee;padding:9px 12px;border-radius:10px;margin:0 0 12px}.pwa-update{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}.pwa-update button{font:inherit;min-height:38px;padding:5px 10px;border:0;background:#e0d3ee;color:#7d6396;border-radius:7px}.pwa-update p{width:100%;margin:2px 0 0;font-size:10px}
+
+/* Reserve loading feedback space without blocking editing during refresh. */
+.fetch-status { min-height: 1.5em; margin: 8px 0; color: #82728f; font-size: 13px; text-align: center; }
+.inline-weather { min-width: 48px; flex-wrap: wrap; justify-content: flex-end; }
+.weather-state { max-width: 105px; font-size: 11px; line-height: 1.4; text-align: right; }
+.weather-state:empty { display: none; }
+.daily-paper { min-height: 225px; }
+.clocks[aria-busy="true"] .place, .daily-notes[aria-busy="true"] textarea:disabled { color: #82728f; }
+
+.card-top { min-height: 32px; }
+.sky-weather .inline-weather { max-width: 70px; min-height: 28px; }
+.blue .status { min-height: 29px; }
+.zone { min-height: 1.5em; }
+.local-date { min-height: 1.5em; }
+
+.weather-state { max-width: 65px; font-size: 10px; }

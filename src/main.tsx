@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { page, weightChallenge } from './data';
 import { countdown, localParts, scheduledFlight } from './time';
 // 200일 기능 복원 시 inclusiveDays import와 아래 주석을 함께 복원합니다.
@@ -26,18 +26,28 @@ function App() {
   const [travel, setTravel] = useState<CurrentTravel | null>(null);
   const [homeStatus, setHomeStatus] = useState<string | null>(null);
   const [currentError, setCurrentError] = useState('');
-  async function refreshCurrent() {
-    try { const current = await loadCurrentState(); setTravel(current.travel); setHomeStatus(current.homeStatus); setCurrentError(''); }
-    catch { setTravel(null); setHomeStatus(null); setCurrentError('현재 정보를 불러오지 못했습니다.'); }
-  }
-  useEffect(() => {
-    let active = true;
-    const update = () => loadCurrentState().then(current => { if (active) { setTravel(current.travel); setHomeStatus(current.homeStatus); setCurrentError(''); } }).catch(() => { if (active) { setTravel(null); setHomeStatus(null); setCurrentError('현재 정보를 불러오지 못했습니다.'); } });
-    void update();
-    window.addEventListener('online', update);
-    const timer = window.setInterval(update, 60000);
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('online', update); };
+  const [currentLoading, setCurrentLoading] = useState(true);
+  const [currentLoaded, setCurrentLoaded] = useState(false);
+  const currentRequest = useRef(0);
+  const refreshCurrent = useCallback(async () => {
+    const request = ++currentRequest.current;
+    setCurrentLoading(navigator.onLine); setCurrentError('');
+    try {
+      const current = await loadCurrentState();
+      if (request !== currentRequest.current) return;
+      setTravel(current.travel); setHomeStatus(current.homeStatus); setCurrentLoaded(true);
+    } catch {
+      if (request === currentRequest.current) setCurrentError(navigator.onLine ? '현재 정보를 불러오지 못했어요.' : '오프라인 · 현재 정보를 확인할 수 없어요.');
+    } finally { if (request === currentRequest.current) setCurrentLoading(false); }
   }, []);
+  useEffect(() => {
+    const update = () => { void refreshCurrent(); };
+    const offline = () => { ++currentRequest.current; setCurrentLoading(false); setCurrentError('오프라인 · 현재 정보를 확인할 수 없어요.'); };
+    update(); window.addEventListener('online', update); window.addEventListener('offline', offline);
+    const timer = window.setInterval(update, 60000);
+    const invalidate = () => { ++currentRequest.current; };
+    return () => { invalidate(); window.clearInterval(timer); window.removeEventListener('online', update); window.removeEventListener('offline', offline); };
+  }, [refreshCurrent]);
   async function refreshRecords() {
     setRecordsError('');
     try { const records = await loadSharedRecords(); setSharedWeights(records.weights); }
@@ -85,15 +95,16 @@ function App() {
       <span className="date-line">{page.startDate.replaceAll('-', '.')} — {page.anniversaryDate.replaceAll('-', '.')}</span>
     </section>
     */}
-    <section className="clocks" aria-label="두 콩의 현지 시계">
-      {[{ person: page.people.home, clock: home, place: '대한민국', status: '', zone: page.people.home.zone, clockLabel: '한국 시간' }, { person: page.people.away, clock: away, place: travel?.place ?? '현재 정보 확인 중…', status: travel?.status ?? '', zone: travel?.zone ?? '', clockLabel: travel?.clockLabel ?? '현지 시간' }].map((card, index) => <article key={card.person.name} className={`clock-card ${index ? 'peach' : 'blue'} ${card.clock?.night ? 'night' : ''}`}>
+    <section aria-busy={currentLoading} className="clocks" aria-label="두 콩의 현지 시계">
+      {[{ person: page.people.home, clock: home, place: '대한민국', status: '', zone: page.people.home.zone, clockLabel: '한국 시간' }, { person: page.people.away, clock: away, place: travel?.place ?? (currentLoading ? '현지 정보 불러오는 중…' : currentLoaded ? '현재 현지 정보 없음' : '현지 정보 미확인'), status: travel?.status ?? '', zone: travel?.zone ?? '', clockLabel: travel?.clockLabel ?? '현지 시간' }].map((card, index) => <article key={card.person.name} className={`clock-card ${index ? 'peach' : 'blue'} ${card.clock?.night ? 'night' : ''}`}>
         <div className="card-top"><span>{card.person.name}</span><div className="sky-weather">{card.clock && <span className="sky" aria-label={card.clock?.night ? '현지 밤 시간' : '현지 낮 시간'}><svg className="sky-icon" viewBox="0 0 24 24" aria-hidden="true">{card.clock?.night ? <path d="M15.4 4.4 C11.8 4.0 8.6 6.2 7.7 9.6 C6.4 14.1 9.2 18.4 13.7 19.3 C16.0 19.8 18.4 19.2 20.0 17.7 C20.7 17.0 20.1 16.0 19.2 16.1 C15.9 16.5 13.0 14.4 12.6 11.2 C12.3 9.0 13.3 7.0 15.2 5.8 C15.9 5.3 16.2 4.6 15.4 4.4Z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/> : <><circle cx="12" cy="12" r="3.5" fill="currentColor"/><path d="M12 2V5 M12 19V22 M2 12H5 M19 12H22 M5 5L7 7 M17 17L19 19 M5 19L7 17 M17 7L19 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></>}</svg></span>}{index === 0 ? <InlineWeather index={0}/> : travel?.place === '바르셀로나' && travel.zone === 'Europe/Madrid' && <InlineWeather index={1}/>}</div></div>
         <div className="character">{card.person.photo ? <img src={card.person.photo} alt={card.person.name}/> : <Bean cat={index === 1}/>}</div>
         <p className="clock-label">{card.clockLabel}</p><time dateTime={now.toISOString()} className="time">{card.clock?.time ?? '—:—'}</time><p className="local-date">{card.clock?.label ?? '—'} {card.clock && <span>· {card.clock.night ? '밤' : '낮'}</span>}</p>
-        <p className="place">{card.place}</p><div className="status">{index === 0 ? <HomeDoing value={homeStatus} onSaved={refreshCurrent}/> : card.status.split(' · ').map(line => <span key={line}>{line}</span>)}</div>{index === 0 && latestWeight && <p className="card-weight-readout">{weightFormat.format(latestWeight.kg)}<small>kg</small></p>}{index === 1 && activeFlight && <p className="flight-remaining"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3 C10.5 1.7 13.5 1.7 13.5 3 L13.5 9 L21 14 L21 16 L13.5 13.5 L13.5 19 L16 21 L16 22 L12 21 L8 22 L8 21 L10.5 19 L10.5 13.5 L3 16 L3 14 L10.5 9Z" fill="currentColor" stroke="currentColor" strokeWidth=".5" strokeLinejoin="round" transform="rotate(30 12 12)"/></svg><span>도착 예정까지 <strong>{activeFlight.minutes}</strong>분</span></p>}<span className="zone">{card.zone}</span>
+        <p className="place">{card.place}</p><div className="status">{index === 0 ? <HomeDoing value={homeStatus} pendingText={currentLoading ? '상태 불러오는 중…' : currentLoaded ? '등록된 상태 없음' : '상태 미확인'} onSaved={refreshCurrent}/> : card.status.split(' · ').map(line => <span key={line}>{line}</span>)}</div>{index === 0 && latestWeight && <p className="card-weight-readout">{weightFormat.format(latestWeight.kg)}<small>kg</small></p>}{index === 1 && activeFlight && <p className="flight-remaining"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3 C10.5 1.7 13.5 1.7 13.5 3 L13.5 9 L21 14 L21 16 L13.5 13.5 L13.5 19 L16 21 L16 22 L12 21 L8 22 L8 21 L10.5 19 L10.5 13.5 L3 16 L3 14 L10.5 9Z" fill="currentColor" stroke="currentColor" strokeWidth=".5" strokeLinejoin="round" transform="rotate(30 12 12)"/></svg><span>도착 예정까지 <strong>{activeFlight.minutes}</strong>분</span></p>}<span className="zone">{card.zone}</span>
       </article>)}
     </section>
-    {currentError && <p className="current-error" role="status">{currentError}<button type="button" onClick={refreshCurrent}>다시 불러오기</button></p>}
+    <p className="fetch-status" role="status">{currentLoading ? (currentLoaded ? '현재 정보 갱신 중…' : '현재 정보 불러오는 중…') : ''}</p>
+    {currentError && <p className="current-error" role="status">{currentError}{currentLoaded && ' · 이전 정보 표시'}<button type="button" disabled={currentLoading} onClick={refreshCurrent}>다시 불러오기</button></p>}
     <a className="weather-credit" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>
     <div className="between" aria-hidden="true"><span/><svg viewBox="0 0 60 28"><path d="M5 14H18M42 14H55" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4"/><path d="M30 21L22 13C16 5 28 2 30 9C32 2 44 5 38 13Z" fill="#f8b5cf" stroke="#dd89b0" strokeWidth="1.2"/></svg><span/></div>
     <DailyNotes today={today}/>
