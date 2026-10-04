@@ -57,7 +57,7 @@ export default {
       }
       if (input.kind === 'home_status') {
         if (author !== 'kongdol') return reply('콩돌만 상태를 바꿀 수 있습니다.', 403);
-        if (!['baseball', 'sleep', 'eating', 'resume', 'certificate'].includes(input.status)) return reply('상태를 확인해주세요.', 400);
+        if (!['baseball', 'sleep', 'eating', 'resume', 'certificate', 'running', 'exercising'].includes(input.status)) return reply('상태를 확인해주세요.', 400);
         const { error } = await supabaseAdmin.rpc('save_home_status', { status_value: input.status });
         return error ? reply('상태를 저장하지 못했습니다. 다시 시도해주세요.', 503) : reply('상태를 저장했습니다.', 200);
       }

@@ -1,7 +1,7 @@
 export type Memo = { id: string; author: 'kongdol' | 'kongsun'; content: string; created_at: string; updated_at: string; record_date: string };
 export type WeightRecord = { date: string; kg: number };
 export type CurrentTravel = { place: string; zone: string; clockLabel: string; status: string };
-export const homeStatuses = [{ value: 'baseball', label: '야구보기' }, { value: 'sleep', label: '취침' }, { value: 'eating', label: '밥먹는중' }, { value: 'resume', label: '자소서작성중' }, { value: 'certificate', label: '자격증공부중' }];
+export const homeStatuses = [{ value: 'baseball', label: '야구보기' }, { value: 'sleep', label: '취침' }, { value: 'eating', label: '밥먹는중' }, { value: 'resume', label: '자소서작성중' }, { value: 'certificate', label: '자격증공부중' }, { value: 'running', label: '러닝 중' }, { value: 'exercising', label: '운동 중' }];
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const sharedStorageConfigured = Boolean(url && key);

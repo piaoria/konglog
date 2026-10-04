@@ -37,7 +37,7 @@ Migration 파일은 공식 Supabase CLI 2.119.0의 `migration new konglog`로 �
 
 `20261003145049_daily_memos_and_current_status.sql`은 기존 메모 내용/ID/생성시각을 보존하고 한국 날짜와 수정시각을 추가합니다. `(record_date, author)` 유일키로 작성자별 하루 1개를 보장합니다. 기존 중복이 있으면 삭제/합치기 없이 실패하므로 적용 전에 메타데이터 중복을 확인합니다. 오늘 본인 메모만 서버 코드 확인 후 수정되며 과거 수정은 거부됩니다. 공개 읽기 RPC `get_memo_days(before_date)`는 날짜 전체의 좌우 종이를 함께 조회합니다.
 
-콩돌 상태는 `public.home_status`에 저장하고 `home_status` 쓰기 종류에서 콩돌 코드만 허용합니다. 원문 상태 텍스트를 클릭할 때 드롭다운이 열리고 선택/코드 확인은 카드 안에서 진행합니다. 허용값은 baseball/sleep/eating/resume/certificate입니다.
+콩돌 상태는 `public.home_status`에 저장하고 `home_status` 쓰기 종류에서 콩돌 코드만 허용합니다. 원문 상태 텍스트를 클릭할 때 드롭다운이 열리고 선택/코드 확인은 카드 안에서 진행합니다. 허용값은 baseball/sleep/eating/resume/certificate/running/exercising입니다.
 
 전체 여행 일정은 `private.travel_schedule`에만 저장합니다. 실제 seed는 사용자가 승인한 별도 비공개 작업으로 넣으며 Git·브라우저 번들·공개 문서에 넣지 않습니다. `supabase/travel-schedule.example.sql`에는 자리표시자만 있습니다. UTC/명시 offset 기간이 겹치면 DB가 거부하며 종료시각은 제외됩니다. 도시 중심 좌표와 IANA 시간대가 정확한지 별도 확인합니다.
 

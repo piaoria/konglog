@@ -40,9 +40,9 @@ test('persistent quota and storage failures deny before code verification',async
  for(const [options,status] of [[{allowed:false},429],[{limitError:{}},503]]) {const ctx=context(options);assert.equal((await edge.fetch(request(memo()),ctx)).status,status);assert.equal(ctx.calls.length,1);}
 });
 test('only home author can change doing, and allowed values are enforced',async()=>{
- for(const [code,status,value] of [[awayCode,403,'sleep'],[homeCode,400,'unlisted'],[homeCode,200,'resume']]) {
+ for(const [code,status,value] of [[awayCode,403,'sleep'],[homeCode,400,'unlisted'],[homeCode,200,'resume'],[homeCode,200,'running'],[homeCode,200,'exercising'],[awayCode,403,'running'],[awayCode,403,'exercising']]) {
   const ctx=context();assert.equal((await edge.fetch(request({kind:'home_status',status:value,code}),ctx)).status,status);
-  if(status===200)assert.deepEqual(ctx.calls[2],{name:'save_home_status',args:{status_value:'resume'}});else assert.equal(ctx.calls.length,2);
+  if(status===200)assert.deepEqual(ctx.calls[2],{name:'save_home_status',args:{status_value:value}});else assert.equal(ctx.calls.length,2);
  }
 });
 test('only home can write weight and no browser date reaches weight SQL',async()=>{
