@@ -81,3 +81,14 @@ form fieldset{border:0;padding:0;margin:0;min-width:0}.memo-list article{border-
 .local-date { min-height: 1.5em; }
 
 .weather-state { max-width: 65px; font-size: 10px; }
+
+.doing-text { min-height: 44px; min-width: 44px; }
+.doing-choices { margin: 4px 0 0; border: 1px solid #c9b9de; border-radius: 8px; background: #fbf8ff; padding: 4px; }
+.doing-choices ul { list-style: none; margin: 0; padding: 0; }
+.doing-choices button { display: block; width: 100%; min-height: 44px; border: 0; border-radius: 5px; padding: 7px 3px; background: transparent; color: #69567f; font: inherit; cursor: pointer; }
+.doing-choices button[aria-pressed="true"] { background: #eee5f7; }
+.doing-choices button:focus-visible { outline: 2px solid #ad8cc7; outline-offset: -2px; }
+.doing-choices .doing-cancel { border-top: 1px solid #ded4e9; color: #8b789f; }
+.night .doing-choices { background: #40364f; border-color: #78678e; }
+.night .doing-choices button { color: #eee4f8; }
+.night .doing-choices button[aria-pressed="true"] { background: #5a4b70; }
